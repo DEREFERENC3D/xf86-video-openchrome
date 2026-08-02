@@ -62,10 +62,6 @@
 #define VIA_AGP_1X_MODE 0x01
 #define VIA_AGP_FW_MODE 0x10
 
-extern void GlxSetVisualConfigs(int nconfigs,
-                                __GLXvisualConfig * configs,
-                                void **configprivs);
-
 static char VIAKernelDriverName[] = "via";
 static char VIAClientDriverName[] = "unichrome";
 
@@ -480,7 +476,6 @@ VIAInitVisualConfigs(ScreenPtr pScreen)
     pVia->numVisualConfigs = numConfigs;
     pVia->pVisualConfigs = pConfigs;
     pVia->pVisualConfigsPriv = pVIAConfigs;
-    GlxSetVisualConfigs(numConfigs, pConfigs, (void **)pVIAConfigPtrs);
 
     return TRUE;
 }
@@ -500,8 +495,6 @@ VIADRI1ScreenInit(ScreenPtr pScreen)
 
     /* Check that the GLX, DRI, and DRM modules have been loaded by testing
      * for canonical symbols in each module. */
-    if (!xf86LoaderCheckSymbol("GlxSetVisualConfigs"))
-        return FALSE;
     if (!xf86LoaderCheckSymbol("drmAvailable"))
         return FALSE;
     if (!xf86LoaderCheckSymbol("DRIQueryVersion")) {

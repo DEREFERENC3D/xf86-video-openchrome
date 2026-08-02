@@ -67,7 +67,6 @@ static char VIAClientDriverName[] = "unichrome";
 
 static char SWRastClientDriverName[] = "swrast";
 
-static Bool VIAInitVisualConfigs(ScreenPtr pScreen);
 static Bool VIADRIMapInit(ScreenPtr pScreen, VIAPtr pVia);
 
 static Bool VIACreateContext(ScreenPtr pScreen, VisualPtr visual,
@@ -352,138 +351,6 @@ VIADRIFBInit(ScrnInfoPtr pScrn)
     }
 }
 
-static Bool
-VIAInitVisualConfigs(ScreenPtr pScreen)
-{
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    VIAPtr pVia = VIAPTR(pScrn);
-    int numConfigs = 0;
-    __GLXvisualConfig *pConfigs = 0;
-    VIAConfigPrivPtr pVIAConfigs = 0;
-    VIAConfigPrivPtr *pVIAConfigPtrs = 0;
-    int i, db, stencil, accum;
-
-    if (pScrn->bitsPerPixel == 16 || pScrn->bitsPerPixel == 32) {
-        numConfigs = 12;
-        if (!(pConfigs = (__GLXvisualConfig *)
-                         calloc(sizeof(__GLXvisualConfig), numConfigs)))
-            return FALSE;
-        if (!(pVIAConfigs = (VIAConfigPrivPtr)
-                            calloc(sizeof(VIAConfigPrivRec), numConfigs))) {
-            free(pConfigs);
-            return FALSE;
-        }
-        if (!(pVIAConfigPtrs = (VIAConfigPrivPtr *)
-                               calloc(sizeof(VIAConfigPrivPtr), numConfigs))) {
-            free(pConfigs);
-            free(pVIAConfigs);
-            return FALSE;
-        }
-        for (i = 0; i < numConfigs; i++)
-            pVIAConfigPtrs[i] = &pVIAConfigs[i];
-
-        i = 0;
-        for (accum = 0; accum <= 1; accum++) {
-            /* 32bpp depth buffer disabled, as Mesa has limitations */
-            for (stencil = 0; stencil <= 2; stencil++) {
-                for (db = 0; db <= 1; db++) {
-                    pConfigs[i].vid = -1;
-                    pConfigs[i].class = -1;
-                    pConfigs[i].rgba = TRUE;
-                    pConfigs[i].redSize = -1;
-                    pConfigs[i].greenSize = -1;
-                    pConfigs[i].blueSize = -1;
-                    pConfigs[i].redMask = -1;
-                    pConfigs[i].greenMask = -1;
-                    pConfigs[i].blueMask = -1;
-                    if (pScrn->bitsPerPixel == 32) {
-                        pConfigs[i].alphaSize = 8;
-                        pConfigs[i].alphaMask = 0xFF000000;
-                    } else {
-                        pConfigs[i].alphaSize = 0;
-                        pConfigs[i].alphaMask = 0;
-                    }
-
-                    if (accum) {
-                        pConfigs[i].accumRedSize = 16;
-                        pConfigs[i].accumGreenSize = 16;
-                        pConfigs[i].accumBlueSize = 16;
-                        if (pScrn->bitsPerPixel == 32)
-                            pConfigs[i].accumAlphaSize = 16;
-                        else
-                            pConfigs[i].accumAlphaSize = 0;
-                    } else {
-                        pConfigs[i].accumRedSize = 0;
-                        pConfigs[i].accumGreenSize = 0;
-                        pConfigs[i].accumBlueSize = 0;
-                        pConfigs[i].accumAlphaSize = 0;
-                    }
-                    if (!db)
-                        pConfigs[i].doubleBuffer = TRUE;
-                    else
-                        pConfigs[i].doubleBuffer = FALSE;
-
-                    pConfigs[i].stereo = FALSE;
-                    pConfigs[i].bufferSize = -1;
-
-                    switch (stencil) {
-                        case 0:
-                            pConfigs[i].depthSize = 24;
-                            pConfigs[i].stencilSize = 8;
-                            break;
-                        case 1:
-                            pConfigs[i].depthSize = 16;
-                            pConfigs[i].stencilSize = 0;
-                            break;
-                        case 2:
-                            pConfigs[i].depthSize = 0;
-                            pConfigs[i].stencilSize = 0;
-                            break;
-                        case 3:
-                            pConfigs[i].depthSize = 32;
-                            pConfigs[i].stencilSize = 0;
-                            break;
-                    }
-
-                    pConfigs[i].auxBuffers = 0;
-                    pConfigs[i].level = 0;
-                    if (accum)
-                        pConfigs[i].visualRating = GLX_SLOW_VISUAL_EXT;
-                    else
-                        pConfigs[i].visualRating = GLX_NONE_EXT;
-                    pConfigs[i].transparentPixel = GLX_NONE_EXT;
-                    pConfigs[i].transparentRed = 0;
-                    pConfigs[i].transparentGreen = 0;
-                    pConfigs[i].transparentBlue = 0;
-                    pConfigs[i].transparentAlpha = 0;
-                    pConfigs[i].transparentIndex = 0;
-                    i++;
-                }
-            }
-        }
-
-        if (i != numConfigs) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[dri] Incorrect "
-                       "initialization of visuals.  Disabling DRI.\n");
-
-            if (pConfigs)
-                free(pConfigs);
-            if (pVIAConfigs)
-                free(pVIAConfigs);
-            if (pVIAConfigPtrs)
-                free(pVIAConfigPtrs);
-
-            return FALSE;
-        }
-    }
-
-    pVia->numVisualConfigs = numConfigs;
-    pVia->pVisualConfigs = pConfigs;
-    pVia->pVisualConfigsPriv = pVIAConfigs;
-
-    return TRUE;
-}
-
 Bool
 VIADRI1ScreenInit(ScreenPtr pScreen)
 {
@@ -608,10 +475,6 @@ VIADRI1ScreenInit(ScreenPtr pScreen)
         pVia->driSize = (pVia->FBFreeEnd - pVia->FBFreeStart) >> 2;
     }
 
-    if (!(VIAInitVisualConfigs(pScreen))) {
-        VIADRICloseScreen(pScreen);
-        return FALSE;
-    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[dri] visual configs initialized.\n");
 
     /* DRIScreenInit doesn't add all the common mappings.

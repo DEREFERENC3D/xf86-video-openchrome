@@ -203,7 +203,11 @@ static int
 via_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr pDraw,
                            CARD64 target_msc, CARD64 divisor, CARD64 remainder)
 {
-    /* No vblank sync; claim the target has been reached. */
+    /* No vblank sync support: the target MSC is considered reached at
+     * once.  The extension expects us to wake the client by completing
+     * the DRI2WaitMSC request; failing to do so leaves it blocked forever
+     * (this hung the server after running glxgears). */
+    DRI2WaitMSCComplete(client, pDraw, target_msc, 0, 0);
     return TRUE;
 }
 

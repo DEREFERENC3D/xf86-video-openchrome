@@ -1240,12 +1240,9 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (pVia->shadowFB) {
         int pitch = BitmapBytePad(pScrn->bitsPerPixel * pScrn->virtualX);
 
-        pVia->shadowFB = FALSE;
         pVia->ShadowPtr = malloc(pitch * pScrn->virtualY);
-        if (pVia->ShadowPtr) {
-            if (shadowSetup(pScreen))
-                pVia->shadowFB = TRUE;
-        }
+        if (!pVia->ShadowPtr)
+            pVia->shadowFB = FALSE;
     }
 
     if (!fbScreenInit(pScreen, NULL, pScrn->virtualX, pScrn->virtualY,
@@ -1271,6 +1268,18 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     /* Must be after RGB ordering is fixed. */
     fbPictureInit(pScreen, NULL, 0);
+
+    /*
+     * shadowSetup() must be called after fbScreenInit() and
+     * fbPictureInit(): both install the screen's default CreateGC
+     * (and fbPictureInit creates the picture screen), so installing
+     * the miext damage wrappers first would leave them bypassed and
+     * the shadow never redisplayed.
+     */
+    if (pVia->shadowFB) {
+        if (!shadowSetup(pScreen))
+            pVia->shadowFB = FALSE;
+    }
 
     if (!pVia->KMS) {
         if (!viaUMSMapIOResources(pScrn)) {

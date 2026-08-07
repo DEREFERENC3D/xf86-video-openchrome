@@ -1163,7 +1163,7 @@ VIACloseScreen(ScreenPtr pScreen)
 
     /* Is the display currently visible? */
     if (pScrn->vtSema)
-        VIALeaveVT(NULL);
+        VIALeaveVT(pScrn);
 
     xf86_cursors_fini(pScreen);
 

@@ -184,6 +184,17 @@ drm_bo_map(ScrnInfoPtr pScrn, struct buffer_object *obj)
     int ret;
 #endif /* OPENCHROMEDRI */
 
+    /*
+     * Reuse an existing mapping rather than creating a new one. Under
+     * DRI2 every call to mmap() installs a new VMA with no matching
+     * munmap(), and the shadow framebuffer redisplay path invokes this
+     * on every frame. Without caching the VMAs accumulate and quickly
+     * exhaust the user address space, causing mmap() to fail and the
+     * shadow copy to silently stop.
+     */
+    if (obj->ptr)
+        return obj->ptr;
+
     if (pVia->directRenderingType == DRI_NONE) {
         switch (obj->domain) {
 #ifdef OPENCHROMEDRI

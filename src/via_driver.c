@@ -1065,7 +1065,51 @@ LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 static void
 viaUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
 {
-    shadowUpdatePacked(pScreen, pBuf);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    VIAPtr pVia = VIAPTR(pScrn);
+    RegionPtr damage;
+    BoxPtr pBox;
+    void *front;
+    uint8_t *src, *dst;
+    int cpp = pScrn->bitsPerPixel / 8;
+    int stride = pScrn->displayWidth * cpp;
+    int nbox, y;
+
+    if (!pVia->shadowFB || !pVia->ShadowPtr)
+        return;
+
+    damage = DamageRegion(pBuf->pDamage);
+    nbox = RegionNumRects(damage);
+    if (nbox <= 0)
+        return;
+
+    front = drm_bo_map(pScrn, pVia->drmmode.front_bo);
+    if (!front)
+        return;
+
+    pBox = RegionRects(damage);
+    while (nbox--) {
+        int x1 = pBox->x1;
+        int y1 = pBox->y1;
+        int x2 = pBox->x2;
+        int y2 = pBox->y2;
+
+        if (x1 < 0) x1 = 0;
+        if (y1 < 0) y1 = 0;
+        if (x2 > pScrn->virtualX) x2 = pScrn->virtualX;
+        if (y2 > pScrn->virtualY) y2 = pScrn->virtualY;
+        if (x2 <= x1 || y2 <= y1) {
+            pBox++;
+            continue;
+        }
+
+        for (y = y1; y < y2; y++) {
+            src = (uint8_t *) pVia->ShadowPtr + y * stride + x1 * cpp;
+            dst = (uint8_t *) front + y * stride + x1 * cpp;
+            memcpy(dst, src, (x2 - x1) * cpp);
+        }
+        pBox++;
+    }
 }
 
 static void *

@@ -60,15 +60,9 @@
 #include "via_xv_overlay.h"
 
 #ifdef OPENCHROMEDRI
-#define _XF86DRI_SERVER_
-#include "xf86dri.h"
-
-#include "dri.h"
+#include "dri2.h"
 #include "drm_fourcc.h"
-#include "GL/glxint.h"
 
-#include "via_dri.h"
-#include "via_drmclient.h"
 #include "via_drm.h"
 #endif
 
@@ -282,10 +276,7 @@ typedef struct _VIA {
     enum dri_type       directRenderingType;
 #ifdef OPENCHROMEDRI
     Bool                XvMCEnabled;
-    DRIInfoPtr          pDRIInfo;
     int                 numVisualConfigs;
-    __GLXvisualConfig*	pVisualConfigs;
-    VIAConfigPrivPtr	pVisualConfigsPriv;
     drm_handle_t        agpHandle;
     drm_handle_t        registerHandle;
     drm_handle_t        frameBufferHandle;
@@ -443,7 +434,7 @@ extern vidCopyFunc viaVidCopyInit(const char *copyType, ScreenPtr pScreen );
 
 /* In via_xwmc.c */
 
-#ifdef OPENCHROMEDRI
+#ifdef ENABLE_XVMC
 /* Basic init and exit functions */
 void ViaInitXVMC(ScreenPtr pScreen);
 void ViaCleanupXVMC(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr *XvAdaptors, int XvAdaptorCount);
@@ -454,14 +445,8 @@ unsigned long viaXvMCPutImageSize(ScrnInfoPtr pScrn);
 #endif
 
 #ifdef OPENCHROMEDRI
-Bool VIADRI1ScreenInit(ScreenPtr pScreen);
-void VIADRICloseScreen(ScreenPtr pScreen);
-Bool VIADRIFinishScreenInit(ScreenPtr pScreen);
-void VIADRIRingBufferCleanup(ScrnInfoPtr pScrn);
-Bool VIADRIRingBufferInit(ScrnInfoPtr pScrn);
-void viaDRIOffscreenRestore(ScrnInfoPtr pScrn);
-void viaDRIOffscreenSave(ScrnInfoPtr pScrn);
-Bool VIADRIBufferInit(ScrnInfoPtr pScrn);
+Bool VIADRI2ScreenInit(ScreenPtr pScreen);
+void VIADRI2CloseScreen(ScreenPtr pScreen);
 
 #endif /* OPENCHROMEDRI */
 

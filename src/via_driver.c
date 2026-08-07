@@ -47,11 +47,7 @@
 #include "xf86Crtc.h"
 #include "xf86cmap.h"
 
-#ifdef OPENCHROMEDRI
-#include "dri.h"
-#else
 #include "drm_fourcc.h"
-#endif
 
 /* RandR support */
 #include "xf86RandR12.h"
@@ -249,15 +245,6 @@ VIAEnterVT_internal(ScrnInfoPtr pScrn, int flags)
         if ((!pVia->IsSecondary) && (!pVia->KMS)) {
             viaRestoreVideo(pScrn);
         }
-
-#ifdef OPENCHROMEDRI
-        if (pVia->directRenderingType == DRI_1) {
-            kickVblank(pScrn);
-            VIADRIRingBufferInit(pScrn);
-            viaDRIOffscreenRestore(pScrn);
-            DRIUnlock(xf86ScrnToScreen(pScrn));
-        }
-#endif
     }
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -282,24 +269,6 @@ VIALeaveVT_internal(ScrnInfoPtr pScrn, int flags)
                         "Entered %s.\n", __func__));
 
     if (!flags) {
-#ifdef OPENCHROMEDRI
-        if (pVia->directRenderingType == DRI_1) {
-            volatile drm_via_sarea_t *saPriv = (drm_via_sarea_t *) DRIGetSAREAPrivate(pScrn->pScreen);
-
-            DRILock(xf86ScrnToScreen(pScrn), 0);
-            saPriv->ctxOwner = ~0;
-
-            viaAccelSync(pScrn);
-
-            VIADRIRingBufferCleanup(pScrn);
-            viaDRIOffscreenSave(pScrn);
-
-            if ((pVia->VQEnable) && (!pVia->KMS)) {
-                viaDisableVQ(pScrn);
-            }
-        }
-#endif
-
         /* Save video status and turn off all video activities. */
         if ((!pVia->IsSecondary) && (!pVia->KMS)){
             viaSaveVideo(pScrn);
@@ -754,14 +723,6 @@ viaDrmOpen(ScrnInfoPtr pScrn)
                     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                                 "Disabling DRM support.\n");
                 }
-            } else if (((pVia->drmVerMajor > drmVIADRMExpected.major) &&
-                (pVia->drmVerMajor < drmVIADRMCompat.major)) ||
-                ((pVia->drmVerMajor == drmVIADRMExpected.major) &&
-                (pVia->drmVerMinor >= drmVIADRMExpected.minor) &&
-                (pVia->drmVerMajor < drmVIADRMCompat.major))) {
-                pVia->directRenderingType = DRI_1;
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                            "DRI1 DRM is found.\n");
             } else {
                 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                             "DRM is not compatible with DDX.\n"
@@ -1223,8 +1184,8 @@ VIACloseScreen(ScreenPtr pScreen)
         drm_bo_free(pScrn, iga->cursor_bo);
 
 #ifdef OPENCHROMEDRI
-    if (pVia->directRenderingType == DRI_1)
-        VIADRICloseScreen(pScreen);
+    if (pVia->directRenderingType == DRI_2)
+        VIADRI2CloseScreen(pScreen);
 
     if (pVia->KMS) {
         if (drmDropMaster(pVia->drmmode.fd))
@@ -1328,11 +1289,10 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
     }
 
     if (pVia->drmmode.fd != -1) {
-        if (pVia->directRenderingType == DRI_1) {
-            /* DRI2 or DRI1 support */
-            if (VIADRI1ScreenInit(pScreen))
+        if (pVia->directRenderingType == DRI_2) {
+            if (VIADRI2ScreenInit(pScreen))
                 DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                                    "DRI1 ScreenInit complete.\n"));
+                                    "DRI2 ScreenInit complete.\n"));
             else
                 pVia->directRenderingType = DRI_NONE;
         }
@@ -1351,7 +1311,6 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if ((!pVia->NoAccel) &&
         ((pVia->directRenderingType == DRI_NONE)
 #ifdef OPENCHROMEDRI
-        || (pVia->directRenderingType == DRI_1)
 #endif /* OPENCHROMEDRI */
         )) {
         if (!viaUMSAccelInit(pScrn)) {
@@ -1452,17 +1411,6 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
 
     if (pVia->directRenderingType != DRI_2) {
-#ifdef OPENCHROMEDRI
-        if (pVia->directRenderingType == DRI_1) {
-            if (!VIADRIFinishScreenInit(pScreen)) {
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                            "Direct rendering disabled.\n");
-                pVia->directRenderingType = DRI_NONE;
-            } else
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                            "Direct rendering enabled.\n");
-        }
-#endif
         if (!pVia->NoAccel)
             viaFinishInitAccel(pScreen);
 

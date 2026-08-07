@@ -27,6 +27,10 @@
 
 #include "drm.h"
 
+#ifndef __user
+#define __user
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

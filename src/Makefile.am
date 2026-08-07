@@ -27,7 +27,7 @@
 SUBDIRS = xvmc
 
 if DRI
-OPENCHROME_DRI_SRCS = via_dri.c
+OPENCHROME_DRI_SRCS = via_dri2.c
 endif
 
 if XVMC

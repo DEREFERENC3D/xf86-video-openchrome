@@ -736,18 +736,6 @@ viaUMSScreenInit(ScrnInfoPtr pScrn)
                 ret = FALSE;
             }
         }
-#ifdef OPENCHROMEDRI
-    } else if (pVia->directRenderingType == DRI_1) {
-        if (!VIADRIKernelInit(pScrn)) {
-            ret = FALSE;
-        }
-
-        if ((!pVia->NoAccel) && (pVia->useEXA)) {
-            if (!viaInitExa(pScrn->pScreen)) {
-                ret = FALSE;
-            }
-        }
-#endif
     }
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,

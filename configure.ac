@@ -91,34 +91,17 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])
 
 if test "$DRI" != no; then
-    PKG_CHECK_MODULES(DRI, [libdrm >= 2.2 xf86driproto])
-    if test -f "${sdkdir}/dri.h"; then
-        have_dri_h="yes"
+    PKG_CHECK_MODULES(DRI, [libdrm >= 2.2])
+    if test -f "${sdkdir}/dri2.h"; then
+        have_dri2_h="yes"
     else
-        have_dri_h="no"
-    fi
-    if test -f "${sdkdir}/sarea.h"; then
-        have_sarea_h="yes"
-    else
-        have_sarea_h="no"
-    fi
-    if test -f "${sdkdir}/dristruct.h"; then
-        have_dristruct_h="yes"
-    else
-        have_dristruct_h="no"
-    fi
-    if test -f "${sdkdir}/damage.h"; then
-        have_damage_h="yes"
-    else
-        have_damage_h="no"
+        have_dri2_h="no"
     fi
 fi
 
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI = xauto; then
-    if test "$have_dri_h" = yes -a \
-        "$have_sarea_h" = yes -a \
-        "$have_dristruct_h" = yes; then
+    if test "$have_dri2_h" = yes; then
         DRI="yes"
     else
         DRI="no"

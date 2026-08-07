@@ -126,29 +126,6 @@ drm_bo_alloc(ScrnInfoPtr pScrn, unsigned long size,
                 }
             }
 #ifdef OPENCHROMEDRI
-        } else if (pVia->directRenderingType == DRI_1) {
-            drm_via_mem_t drm;
-
-            size = ALIGN_TO(size, alignment);
-            drm.context = DRIGetContext(pScrn->pScreen);
-            drm.size = size;
-            drm.type = (domain == TTM_PL_TT ? VIA_MEM_AGP : VIA_MEM_VIDEO);
-            ret = drmCommandWriteRead(pVia->drmmode.fd, DRM_VIA_ALLOCMEM,
-                                        &drm, sizeof(drm_via_mem_t));
-            if (!ret && (size == drm.size)) {
-                if (domain == TTM_PL_VRAM)
-                    drm.offset -= pVia->FBFreeStart;
-                obj->offset = ALIGN_TO(drm.offset, alignment);
-                obj->handle = drm.index;
-                obj->domain = domain;
-                obj->size = drm.size;
-                DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                                    "%lu bytes of DRI memory "
-                                    "allocated at 0x%lx, "
-                                    "handle 0x%lx.\n",
-                                    obj->size, obj->offset,
-                                    obj->handle));
-            }
         } else if (pVia->directRenderingType == DRI_2) {
             struct drm_via_gem_alloc args;
 
@@ -207,15 +184,14 @@ drm_bo_map(ScrnInfoPtr pScrn, struct buffer_object *obj)
     int ret;
 #endif /* OPENCHROMEDRI */
 
-    if ((pVia->directRenderingType == DRI_NONE)
-#ifdef OPENCHROMEDRI
-        || (pVia->directRenderingType == DRI_1)
-#endif /* OPENCHROMEDRI */
-    ) {
+    if (pVia->directRenderingType == DRI_NONE) {
         switch (obj->domain) {
 #ifdef OPENCHROMEDRI
         case TTM_PL_TT:
             obj->ptr = (uint8_t*)pVia->agpMappedAddr + obj->offset;
+            break;
+#else
+        case TTM_PL_TT:
             break;
 #endif /* OPENCHROMEDRI */
         case TTM_PL_VRAM:
@@ -275,16 +251,7 @@ drm_bo_free(ScrnInfoPtr pScrn, struct buffer_object *obj)
                     exaOffscreenFree(pScrn->pScreen, pArea);
                 }
 #ifdef OPENCHROMEDRI
-            } else if (pVia->directRenderingType == DRI_1) {
-                drm_via_mem_t drm;
-
-                drm.index = obj->handle;
-                if (drmCommandWrite(pVia->drmmode.fd, DRM_VIA_FREEMEM,
-                                    &drm, sizeof(drm_via_mem_t)) < 0) {
-                    ErrorF("DRM failed to free for handle %lu.\n", obj->handle);
-                    return;
-                }
-            } else  if (pVia->directRenderingType == DRI_2) {
+            } else if (pVia->directRenderingType == DRI_2) {
                 struct drm_gem_close close;
 
                 munmap(obj->ptr, obj->size);

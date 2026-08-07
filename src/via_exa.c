@@ -265,16 +265,6 @@ viaCheckUpload(ScrnInfoPtr pScrn, Via3DState * v3d)
     forceUpload = (pVia->lastToUpload != v3d);
     pVia->lastToUpload = v3d;
 
-#ifdef OPENCHROMEDRI
-    if (pVia->directRenderingType == DRI_1) {
-        volatile drm_via_sarea_t *saPriv = (drm_via_sarea_t *)
-                DRIGetSAREAPrivate(pScrn->pScreen);
-        int myContext = DRIGetContext(pScrn->pScreen);
-
-        forceUpload = forceUpload || (saPriv->ctxOwner != myContext);
-        saPriv->ctxOwner = myContext;
-    }
-#endif
     return forceUpload;
 }
 

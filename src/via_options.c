@@ -466,30 +466,39 @@ viaProcessOptions(ScrnInfoPtr pScrn)
         }
     }
 
-    from = (xf86GetOptValBool(VIAOptions,
-                                OPTION_SHADOW_FB, &pVia->shadowFB)
-            ? X_CONFIG : X_DEFAULT);
-    xf86DrvMsg(pScrn->scrnIndex, from,
-                "Shadow framebuffer is %s.\n",
-                pVia->shadowFB ? "enabled" : "disabled");
-
     /*
-     * Use hardware acceleration, unless on shadow frame buffer.
+     * Use hardware acceleration by default.
      */
     from = (xf86GetOptValBool(VIAOptions,
                                 OPTION_NOACCEL, &pVia->NoAccel) ?
             X_CONFIG : X_DEFAULT);
-    if (!pVia->NoAccel && pVia->shadowFB) {
-        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                    "Acceleration is not supported when using shadow "
-                    "frame buffer.\n");
-        pVia->NoAccel = TRUE;
-        from = X_DEFAULT;
-    }
-
     xf86DrvMsg(pScrn->scrnIndex, from,
                 "Hardware acceleration is %s.\n",
                 !pVia->NoAccel ? "enabled" : "disabled");
+
+    /*
+     * Use shadow framebuffer by default...
+     */
+    from = (xf86GetOptValBool(VIAOptions,
+                                OPTION_SHADOW_FB, &pVia->shadowFB)
+            ? X_CONFIG : X_DEFAULT);
+
+    /*
+     * ...Unless acceleration is enabled.
+     */
+    if (!pVia->NoAccel && pVia->shadowFB) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                    "Shadow frame buffer is not supported when using "
+                    "hardware acceleration.\n");
+        pVia->shadowFB = FALSE;
+        from = X_DEFAULT;
+    } else if (!from) {
+        pVia->shadowFB = TRUE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, from,
+                "Shadow framebuffer is %s.\n",
+                pVia->shadowFB ? "enabled" : "disabled");
 
     if (!pVia->NoAccel) {
         from = X_DEFAULT;

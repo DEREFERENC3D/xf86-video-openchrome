@@ -1350,7 +1350,7 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
                 pVia->directRenderingType = DRI_NONE;
         }
     }
-#endif
+#endif /* OPENCHROMEDRI */
 
 #ifdef OPENCHROMEDRI
     if (pVia->directRenderingType != DRI_2)

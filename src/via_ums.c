@@ -690,6 +690,14 @@ viaUMSMapIOResources(ScrnInfoPtr pScrn)
     }
 
     /*
+     * Under KMS the framebuffer is a DRM buffer object (front_bo),
+     * not a directly mappable PCI region, so skip the FB mapping.
+     */
+    if (pVia->KMS) {
+        goto exit;
+    }
+
+    /*
      * Map FB PCI hardware resource to the memory map.
      */
     if (!viaMapFB(pScrn)) {
@@ -737,6 +745,20 @@ viaUMSScreenInit(ScrnInfoPtr pScrn)
             }
         }
     }
+#ifdef OPENCHROMEDRI
+    else if (pVia->directRenderingType == DRI_2) {
+        /*
+         * Under KMS the framebuffer is a DRM buffer object, not a
+         * linear area to be managed by xf86InitFBManager(). Only
+         * initialize the EXA engine.
+         */
+        if ((!pVia->NoAccel) && pVia->useEXA) {
+            if (!viaInitExa(pScrn->pScreen)) {
+                ret = FALSE;
+            }
+        }
+    }
+#endif /* OPENCHROMEDRI */
 
     DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                         "Exiting %s.\n", __func__));

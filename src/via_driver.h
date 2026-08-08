@@ -325,6 +325,33 @@ typedef struct _VIA {
 
 #define VIAPTR(p) ((VIAPtr)((p)->driverPrivate))
 
+/*
+ * Offscreen memory carved out of the single GEM window (front_bo) for
+ * EXA-managed offscreen pixmaps on the KMS/DRI2 path. The window is a
+ * single VRAM buffer object spanning the visible screen plus this many
+ * bytes of offscreen space.
+ */
+#define VIA_KMS_EXA_OFFSCREEN_SIZE (16 << 20) /* 16 MiB */
+
+/*
+ * Return the absolute VRAM offset of the GEM window used for the
+ * framebuffer and EXA offscreen memory on the KMS/DRI2 path. Engine
+ * commands address real VRAM, so EXA window-relative offsets must be
+ * translated by adding this value. On the UMS/DRI1 paths framebuffer
+ * memory always starts at VRAM offset 0, so this returns 0.
+ */
+static inline unsigned long
+viaGetKmsScreenOffset(ScrnInfoPtr pScrn)
+{
+#ifdef OPENCHROMEDRI
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    if (pVia->KMS && pVia->drmmode.front_bo)
+        return pVia->drmmode.front_bo->offset;
+#endif
+    return 0;
+}
+
 typedef struct
 {
     Bool IsDRIEnabled;

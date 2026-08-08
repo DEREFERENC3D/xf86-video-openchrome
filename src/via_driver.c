@@ -714,7 +714,6 @@ viaDrmOpen(ScrnInfoPtr pScrn)
                 if (!drmCheckModesettingSupported(busId)) {
                     pVia->KMS = TRUE;
                     pVia->directRenderingType = DRI_2;
-                    pVia->NoAccel = TRUE;
                     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
                                 "KMS is supported by DRM.\n");
                 } else {
@@ -1333,6 +1332,35 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef OPENCHROMEDRI
     if (pVia->KMS) {
+        if (!pVia->NoAccel) {
+            /*
+            * EXA on the KMS path writes the 2D engine over the MMIO
+            * windows mapped here. If the mapping is refused (e.g. the
+            * kernel driver owns the BAR), fall back to no acceleration
+            * rather than crashing on a NULL MapBase.
+            *
+            * viaMapMMIO() uses the vgaHW interface, whose symbols live
+            * in the "vgahw" submodule. The UMS path loads it during
+            * viaUMSPreInit(); the KMS path skips that, so load it here.
+            */
+            if (!xf86LoadSubModule(pScrn, "vgahw")) {
+                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                            "KMS accel initialization failed: "
+                            "could not load vgahw module.\n");
+                pVia->NoAccel = TRUE;
+            } else if (!vgaHWGetHWRec(pScrn)) {
+                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                            "KMS accel initialization failed: "
+                            "vgaHWGetHWRec returned FALSE.\n");
+                pVia->NoAccel = TRUE;
+            } else if (!viaUMSMapIOResources(pScrn)) {
+                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                            "KMS accel initialization failed; "
+                            "viaUMSMapIOResources returned FALSE.\n");
+                pVia->NoAccel = TRUE;
+            }
+        }
+
         if (drmSetMaster(pVia->drmmode.fd)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                         "drmSetMaster failed: %s\n",
@@ -1350,10 +1378,49 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
                 pVia->directRenderingType = DRI_NONE;
         }
     }
+
+    /*
+     * Under KMS the framebuffer is a DRM buffer object. Allocate it
+     * here, right before viaUMSScreenInit()/viaInitExa(), so that the
+     * EXA driver sees a non-NULL memoryBase and a proper offscreen
+     * heap. The window is a single GEM object covering the visible
+     * screen plus offscreen space; EXA carve-offs are offsets within
+     * it.
+     */
+    if (pVia->KMS) {
+        unsigned long windowSize;
+
+        bppSize = viaConvertDepthToBpp(pScrn->bitsPerPixel,
+                                            pScrn->depth);
+        alignedPitch = pScrn->virtualX * bppSize;
+        alignedPitch = ALIGN_TO(alignedPitch, 16);
+        windowSize = (unsigned long) alignedPitch * pScrn->virtualY +
+                        VIA_KMS_EXA_OFFSCREEN_SIZE;
+        pVia->drmmode.front_bo = drm_bo_alloc(pScrn, windowSize, 16,
+                                            TTM_PL_VRAM);
+        if (!pVia->drmmode.front_bo)
+            return FALSE;
+
+        pVia->FBBase = drm_bo_map(pScrn, pVia->drmmode.front_bo);
+        if (!pVia->FBBase) {
+            drm_bo_free(pScrn, pVia->drmmode.front_bo);
+            pVia->drmmode.front_bo = NULL;
+            return FALSE;
+        }
+
+        pVia->FBFreeStart = pScrn->virtualY * pVia->Bpl;
+        pVia->FBFreeEnd = pVia->drmmode.front_bo->size;
+
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                    "Allocated a %lu MiB framebuffer window for "
+                    "EXA offscreen memory.\n",
+                    pVia->drmmode.front_bo->size / (1024 * 1024));
+    }
 #endif /* OPENCHROMEDRI */
 
 #ifdef OPENCHROMEDRI
-    if (pVia->directRenderingType != DRI_2)
+    if (pVia->directRenderingType == DRI_NONE ||
+        pVia->directRenderingType == DRI_2)
 #endif /* OPENCHROMEDRI */
     {
         if (!viaUMSScreenInit(pScrn)) {
@@ -1364,6 +1431,7 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if ((!pVia->NoAccel) &&
         ((pVia->directRenderingType == DRI_NONE)
 #ifdef OPENCHROMEDRI
+         || (pVia->directRenderingType == DRI_2)
 #endif /* OPENCHROMEDRI */
         )) {
         if (!viaUMSAccelInit(pScrn)) {
@@ -1430,15 +1498,17 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
                                         pScrn->depth);
     alignedPitch = pScrn->virtualX * bppSize;
     alignedPitch = ALIGN_TO(alignedPitch, 16);
-    pVia->drmmode.front_bo = drm_bo_alloc(pScrn,
-                                            alignedPitch *
-                                            pScrn->virtualY,
-                                            16, TTM_PL_VRAM);
-    if (!pVia->drmmode.front_bo)
-        return FALSE;
+    if (!pVia->KMS) {
+        pVia->drmmode.front_bo = drm_bo_alloc(pScrn,
+                                                alignedPitch *
+                                                pScrn->virtualY,
+                                                16, TTM_PL_VRAM);
+        if (!pVia->drmmode.front_bo)
+            return FALSE;
 
-    if (!drm_bo_map(pScrn, pVia->drmmode.front_bo))
-        return FALSE;
+        if (!drm_bo_map(pScrn, pVia->drmmode.front_bo))
+            return FALSE;
+    }
 
     pScrn->vtSema = TRUE;
     pScreen->SaveScreen = xf86SaveScreen;
@@ -1464,10 +1534,11 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
 
     if (pVia->directRenderingType != DRI_2) {
-        if (!pVia->NoAccel)
-            viaFinishInitAccel(pScreen);
-
         viaInitVideo(pScrn->pScreen);
+    }
+
+    if (!pVia->NoAccel) {
+        viaFinishInitAccel(pScreen);
     }
 
     if (serverGeneration == 1)

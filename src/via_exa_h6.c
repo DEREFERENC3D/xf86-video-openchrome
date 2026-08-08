@@ -165,7 +165,8 @@ void
 viaExaSolid_H6(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pPixmap->drawable.pScreen);
-    CARD32 dstOffset = exaGetPixmapOffset(pPixmap);
+    CARD32 dstOffset = viaGetKmsScreenOffset(pScrn) +
+                        exaGetPixmapOffset(pPixmap);
     CARD32 dstPitch = exaGetPixmapPitch(pPixmap);
     int w = x2 - x1, h = y2 - y1;
     VIAPtr pVia = VIAPTR(pScrn);
@@ -207,7 +208,8 @@ viaExaPrepareCopy_H6(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     if (exaGetPixmapPitch(pDstPixmap) & 7)
         return FALSE;
 
-    tdc->srcOffset = exaGetPixmapOffset(pSrcPixmap);
+    tdc->srcOffset = viaGetKmsScreenOffset(pScrn) +
+                        exaGetPixmapOffset(pSrcPixmap);
 
     tdc->cmd = VIA_GEC_BLT | VIAACCELCOPYROP(alu);
     if (xdir < 0)
@@ -230,7 +232,8 @@ viaExaCopy_H6(PixmapPtr pDstPixmap, int srcX, int srcY, int dstX, int dstY,
                 int width, int height)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pDstPixmap->drawable.pScreen);
-    CARD32 dstOffset = exaGetPixmapOffset(pDstPixmap), val;
+    CARD32 dstOffset = viaGetKmsScreenOffset(pScrn) +
+                        exaGetPixmapOffset(pDstPixmap), val;
     CARD32 dstPitch = exaGetPixmapPitch(pDstPixmap);
     VIAPtr pVia = VIAPTR(pScrn);
     ViaTwodContext *tdc = &pVia->td;
@@ -368,7 +371,9 @@ viaExaPrepareComposite_H6(int op, PicturePtr pSrcPicture,
 	    return FALSE;
 	}
 
-    v3d->setDestination(v3d, exaGetPixmapOffset(pDst),
+    v3d->setDestination(v3d,
+                        viaGetKmsScreenOffset(pScrn) +
+                        exaGetPixmapOffset(pDst),
                         exaGetPixmapPitch(pDst), pDstPicture->format);
     v3d->setCompositeOperator(v3d, op);
     v3d->setDrawing(v3d, 0x0c, 0xFFFFFFFF, 0x000000FF, 0xFF);
@@ -420,6 +425,8 @@ viaExaPrepareComposite_H6(int op, PicturePtr pSrcPicture,
     if (!pVia->srcP) {
         offset = exaGetPixmapOffset(pSrc);
         isAGP = viaIsAGP(pVia, pSrc, &offset);
+        if (!isAGP)
+            offset += viaGetKmsScreenOffset(pScrn);
         if (!isAGP && !viaExaIsOffscreen(pSrc))
             return FALSE;
         if (!v3d->setTexture(v3d, curTex, offset,
@@ -434,6 +441,8 @@ viaExaPrepareComposite_H6(int op, PicturePtr pSrcPicture,
     if (pMaskPicture && !pVia->maskP) {
         offset = exaGetPixmapOffset(pMask);
         isAGP = viaIsAGP(pVia, pMask, &offset);
+        if (!isAGP)
+            offset += viaGetKmsScreenOffset(pScrn);
         if (!isAGP && !viaExaIsOffscreen(pMask))
             return FALSE;
         viaOrder(pMask->drawable.width, &width);

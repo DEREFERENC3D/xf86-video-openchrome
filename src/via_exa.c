@@ -863,7 +863,7 @@ viaInitExa(ScreenPtr pScreen)
     pExa->exa_minor = EXA_VERSION_MINOR;
     pExa->memoryBase = pVia->FBBase;
     pExa->memorySize = pVia->FBFreeEnd;
-    pExa->offScreenBase = pScrn->virtualY * pVia->Bpl;
+    pExa->offScreenBase = ALIGN_TO(pScrn->virtualY * pVia->Bpl, 32);
     pExa->pixmapOffsetAlign = 32;
     pExa->pixmapPitchAlign = 16;
     pExa->flags = EXA_OFFSCREEN_PIXMAPS |

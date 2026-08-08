@@ -487,12 +487,6 @@ viaProcessOptions(ScrnInfoPtr pScrn)
         from = X_DEFAULT;
     }
 
-    /*
-     * Disable EXA for KMS case
-     */
-    if (pVia->KMS)
-        pVia->NoAccel = TRUE;
-
     xf86DrvMsg(pScrn->scrnIndex, from,
                 "Hardware acceleration is %s.\n",
                 !pVia->NoAccel ? "enabled" : "disabled");

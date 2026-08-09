@@ -452,9 +452,8 @@ viaExaPrintCompositeInfo(char *info, CARD8 op, PicturePtr pSrc, PicturePtr pMask
  * Wait for acceleration engines idle. An expensive way to sync.
  */
 void
-viaAccelSync(ScrnInfoPtr pScrn)
+viaAccelSync(VIAPtr pVia)
 {
-    VIAPtr pVia = VIAPTR(pScrn);
     int loop = 0;
 
     mem_barrier();
@@ -499,7 +498,7 @@ viaAccelWaitMarker(ScreenPtr pScreen, int marker)
         while ((pVia->lastMarkerRead - uMarker) > (1 << 24))
             pVia->lastMarkerRead = *(CARD32 *) pVia->markerBuf;
     } else {
-        viaAccelSync(pScrn);
+        viaAccelSync(pVia);
     }
 }
 
@@ -1034,7 +1033,7 @@ viaExitAccel(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VIAPtr pVia = VIAPTR(pScrn);
 
-    viaAccelSync(pScrn);
+    viaAccelSync(pVia);
     viaTearDownCBuffer(&pVia->cb);
 
     if (pVia->useEXA) {

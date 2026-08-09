@@ -384,7 +384,7 @@ Bool viaInitExa(ScreenPtr pScreen);
 Bool viaAccelSetMode(int bpp, ViaTwodContext * tdc);
 void viaSetClippingRectangle(ScrnInfoPtr pScrn,
                                 int x1, int y1, int x2, int y2);
-void viaAccelSync(ScrnInfoPtr);
+void viaAccelSync(VIAPtr);
 void viaExitAccel(ScreenPtr);
 void viaFinishInitAccel(ScreenPtr);
 Bool viaOrder(CARD32 val, CARD32 * shift);

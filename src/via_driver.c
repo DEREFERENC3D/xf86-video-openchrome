@@ -1533,13 +1533,20 @@ VIAScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (!VIAEnterVT_internal(pScrn, 1))
         return FALSE;
 
-    if (pVia->directRenderingType != DRI_2) {
-        viaInitVideo(pScrn->pScreen);
-    }
+#ifdef OPENCHROMEDRI
+    if (!VIADRI2FinishScreenInit(pScreen)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                    "Direct rendering disabled.\n");
+        pVia->directRenderingType = DRI_NONE;
+    } else
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                    "Direct rendering enabled.\n");
+#endif
 
-    if (!pVia->NoAccel) {
+    if (!pVia->NoAccel)
         viaFinishInitAccel(pScreen);
-    }
+
+    viaInitVideo(pScrn->pScreen);
 
     if (serverGeneration == 1)
         xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);

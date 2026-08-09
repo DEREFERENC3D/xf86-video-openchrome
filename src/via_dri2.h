@@ -27,6 +27,7 @@
 #include "dri2.h"
 
 Bool VIADRI2ScreenInit(ScreenPtr pScreen);
+Bool VIADRI2FinishScreenInit(ScreenPtr pScreen);
 void VIADRI2CloseScreen(ScreenPtr pScreen);
 
 #endif /* _VIA_DRI2_H_ */

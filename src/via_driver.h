@@ -473,6 +473,7 @@ unsigned long viaXvMCPutImageSize(ScrnInfoPtr pScrn);
 
 #ifdef OPENCHROMEDRI
 Bool VIADRI2ScreenInit(ScreenPtr pScreen);
+Bool VIADRI2FinishScreenInit(ScreenPtr pScreen);
 void VIADRI2CloseScreen(ScreenPtr pScreen);
 
 #endif /* OPENCHROMEDRI */

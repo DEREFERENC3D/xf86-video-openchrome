@@ -212,6 +212,41 @@ via_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr pDraw,
 }
 
 Bool
+VIADRI2FinishScreenInit(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    VIAPtr pVia = VIAPTR(pScrn);
+
+    /*
+     * Legacy DRI1 did the following here, none of which applies to
+     * DRI2 / KMS:
+     *
+     *  - CAREA (DRM_via_sarea_t / ctxOwner) is a DRI1-only construct;
+     *    DRI2 clients negotiate buffers through GetBuffersInstead.
+     *  - Off-screen framebuffer space was allocated with drm_bo_alloc()
+     *    into pVia->driOffScreenMem.  Under DRI2/KMS the framebuffer
+     *    window (visible area + VIA_KMS_EXA_OFFSCREEN_SIZE) is already
+     *    a single GEM object created in VIAScreenInit(), and DRI2 draw
+     *    buffers are created on demand by via_dri2_create_buffer().
+     *  - The AGP DMA ring buffer (VIADRIRingBufferInit) and the
+     *    userspace-installed IRQ handler (drmCtlInstHandler) belonged
+     *    to DRI1's command submission path.  The kernel DRM module now
+     *    owns the ring and the interrupt (via_ring_legacy_init installs
+     *    both), so they must not be set up from the DDX.
+     *
+     * EXA submits 2D commands through the MMIO path, so agpDMA must
+     * remain FALSE.  There is nothing left to initialize: the DRI2
+     * extension was already registered by VIADRI2ScreenInit().
+     */
+    if (pVia->directRenderingType != DRI_2)
+        return FALSE;
+
+    pVia->agpDMA = FALSE;
+
+    return TRUE;
+}
+
+Bool
 VIADRI2ScreenInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);

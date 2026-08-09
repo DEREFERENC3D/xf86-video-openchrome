@@ -45,7 +45,6 @@ viaFlushPCI(VIAPtr pVia, ViaCommandBuffer *cb)
     register CARD32 *bp = cb->buf;
     CARD32 transSetting;
     CARD32 *endp = bp + cb->pos;
-    unsigned loop = 0;
     register CARD32 offset = 0;
     register CARD32 value;
 
@@ -72,30 +71,7 @@ viaFlushPCI(VIAPtr pVia, ViaCommandBuffer *cb)
                      * for an unacceptable amount of time in VIASETREG while
                      * other high priority interrupts may be pending.
                      */
-                    switch (pVia->Chipset) {
-                    case VIA_VX800:
-                    case VIA_VX855:
-                    case VIA_VX900:
-                        while ((VIAGETREG(VIA_REG_STATUS) &
-                                (VIA_CMD_RGTR_BUSY_H5 | VIA_2D_ENG_BUSY_H5)) &&
-                                (loop++ < MAXLOOP)) ;
-                        break;
-
-                    case VIA_P4M890:
-                    case VIA_K8M890:
-                    case VIA_P4M900:
-                        while ((VIAGETREG(VIA_REG_STATUS) &
-                                (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY)) &&
-                                (loop++ < MAXLOOP)) ;
-                        break;
-
-                    default:
-                        while (!(VIAGETREG(VIA_REG_STATUS) & VIA_VR_QUEUE_EMPTY) &&
-                                (loop++ < MAXLOOP)) ;
-                        while ((VIAGETREG(VIA_REG_STATUS) &
-                                (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY)) &&
-                                (loop++ < MAXLOOP)) ;
-                    }
+                    viaAccelSync(pVia);
                 }
                 offset = (*bp++ & 0x0FFFFFFF) << 2;
                 value = *bp++;

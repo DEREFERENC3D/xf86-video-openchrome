@@ -180,6 +180,26 @@ drm_bo_alloc(ScrnInfoPtr pScrn, unsigned long size,
         break;
 
     case TTM_PL_SYSTEM:
+        size = ALIGN_TO(size, alignment);
+
+        obj->ptr = xnfcalloc(1, size);
+        if (!obj->ptr) {
+            DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                                "System memory allocation failed.\n"));
+            ret = -ENOMEM;
+            break;
+        }
+
+        obj->size = size;
+        obj->domain = domain;
+        obj->handle = 0;
+        obj->offset = 0;
+
+        DEBUG(xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                            "%lu bytes of System RAM allocated at %p.\n",
+                            obj->size, obj->ptr));
+
+        break;
     default:
         ret = -ENXIO;
         break;
@@ -295,6 +315,11 @@ drm_bo_free(ScrnInfoPtr pScrn, struct buffer_object *obj)
                     return;
                 }
 #endif
+            }
+            break;
+        case TTM_PL_SYSTEM:
+            if (obj->ptr) {
+                free(obj->ptr);
             }
             break;
 

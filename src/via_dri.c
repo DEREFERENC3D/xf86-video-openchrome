@@ -251,6 +251,7 @@ VIADRIAgpInit(ScrnInfoPtr pScrn)
 {
     unsigned long agpCmdSize, agp_phys;
     VIAPtr pVia = VIAPTR(pScrn);
+    VIADRIPtr pVIADRI = pVia->pDRIInfo->devPrivate;
     drm_handle_t handle;
     drmAddress agpaddr;
     drm_via_agp_t agp;
@@ -320,6 +321,9 @@ VIADRIAgpInit(ScrnInfoPtr pScrn)
         drmAgpRelease(pVia->drmmode.fd);
         return FALSE;
     }
+    pVIADRI->agp.handle = handle;
+    pVIADRI->agp.size = pVia->agpSize;
+
     drmMap(pVia->drmmode.fd, handle, pVia->agpSize, &agpaddr);
     pVia->agpMappedAddr = agpaddr;
 
@@ -623,6 +627,8 @@ VIADRI1ScreenInit(ScreenPtr pScreen)
         VIADRICloseScreen(pScreen);
         return FALSE;
     }
+    pVIADRI->fbOffset = pVia->FBFreeStart;
+    pVIADRI->fbSize = pVia->FBFreeEnd;
     pVIADRI->regs.size = VIA_MMIO_REGSIZE;
     pVIADRI->regs.handle = pVia->registerHandle;
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "[drm] mmio Registers = 0x%08lx\n",

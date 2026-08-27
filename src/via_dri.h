@@ -45,7 +45,7 @@ typedef struct {
 } viaRegion, *viaRegionPtr;
 
 typedef struct {
-    viaRegion regs;
+    viaRegion regs, agp;
     int deviceID;
     int width;
     int height;
@@ -53,6 +53,8 @@ typedef struct {
     int bytesPerPixel;
     int priv1;
     int priv2;
+    int fbOffset;
+    int fbSize;
     Bool drixinerama;
     int backOffset;
     int depthOffset;
